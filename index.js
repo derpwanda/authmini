@@ -18,7 +18,7 @@ server.post('/api/login', (req,res) => {
     .where({ username: creds.username })
     .first()
     .then(user => {
-      if(user && bcrypt.hashSync(creds.password, user.password)) {
+      if(user && bcrypt.compareSync(creds.password, user.password)) { //see COMPARESYNC
         //passwords match and user exists by that username
         res.status(200).json({message: 'you made it!'})
       } else {

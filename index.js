@@ -1,11 +1,25 @@
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcryptjs'); //**************
+const bcrypt = require('bcryptjs');
+const session = require('express-session')
 
 const db = require('./database/dbConfig.js');
 
 const server = express();
+//create config object
+const sessionConfig = {
+  name: 'notsession', // default is connect.sid
+  secret: 'asdf;lkj',
+  cookie: {
+    maxAge: 1000 * 60 * 10,
+    secure: false, // only set it over https; in production you want this true
+  },
+  httpOnly: true,
+  resave: false,
+  saveUnitialized: false,
+}
 
+server.use(session(sessionConfig)); //wireup config
 server.use(express.json());
 server.use(cors());
 
@@ -19,6 +33,8 @@ server.post('/api/login', (req,res) => {
     .first()
     .then(user => {
       if(user && bcrypt.compareSync(creds.password, user.password)) { //see COMPARESYNC
+        //
+        req.session.userId = user.id;
         //passwords match and user exists by that username
         res.status(200).json({message: 'you made it!'})
       } else {
@@ -45,7 +61,7 @@ server.post('/api/register', (req,res) => {
   .then(ids => {
     res.status(201).json(ids);
   })
-  .catch(err => json(err))
+  .catch(err => res.json(err))
 })
 
 server.get('/', (req, res) => {
@@ -54,12 +70,18 @@ server.get('/', (req, res) => {
 
 // protect this route, only authenticated users should see it
 server.get('/api/users', (req, res) => {
-  db('users')
-    .select('id', 'username', 'password') // ***** added password to the select
-    .then(users => {
-      res.json(users);
-    })
-    .catch(err => res.send(err));
+  if (req.session && req.session.userId) {
+    //if they are logged in, provide access to users
+    db('users')
+      .select('id', 'username', 'password') // added password to the select****
+      .then(users => {
+        res.json(users);
+      })
+      .catch(err => res.send(err));
+  } else {
+    //bounce
+    res.status(401).json({ message: 'not allowed'})
+  }
 });
 
 
